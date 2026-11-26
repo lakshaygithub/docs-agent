@@ -64,7 +64,7 @@ Full runs save every answer, tool call and score to `evals/results/`.
 
 ### Results
 
-All runs used **Qwen2.5-7B-Instruct** (4-bit), running locally on a MacBook Air (M4) with llama.cpp. All 30 questions were run once, at temperature 0.
+All runs used **Qwen2.5-7B-Instruct** (4-bit), running locally on an Apple M4 Mac (16 GB) with llama.cpp. All 30 questions were run once, at temperature 0.
 
 | Run | What changed | Passed | Model calls per question | Time per question | Tokens (all 30) |
 |---|---|---|---|---|---|
