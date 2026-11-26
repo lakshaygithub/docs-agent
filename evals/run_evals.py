@@ -31,7 +31,9 @@ def score(q: dict, r: AgentResult) -> list[str]:
     """Returns the reasons a result failed. An empty list means it passed."""
     problems = []
     answer = _norm(r.answer)
-    if r.gave_up:
+    if r.error:
+        problems.append(f"model error: {r.error[:80]}")
+    elif r.gave_up:
         problems.append("gave up without an answer")
     for item in q["must_include"]:
         if not any(_norm(alt) in answer for alt in item.split("|")):
@@ -77,8 +79,12 @@ def full_run(questions: list[dict]) -> None:
     rows, by_cat = [], defaultdict(lambda: [0, 0])
     for q in questions:
         agent = Agent(model, tickets_path=tickets)  # fresh conversation per question
-        r = agent.ask(q["question"])
-        problems = score(q, r)
+        try:
+            r = agent.ask(q["question"])
+            problems = score(q, r)
+        except Exception as e:  # e.g. a timeout: count it as a failure and keep going
+            r = AgentResult(answer="", citations=[], found_in_docs=False, escalated=False, gave_up=True)
+            problems = [f"error: {type(e).__name__}"]
         by_cat[q["category"]][0] += not problems
         by_cat[q["category"]][1] += 1
         mark = "PASS" if not problems else "FAIL"

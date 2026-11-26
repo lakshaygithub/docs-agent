@@ -1,6 +1,6 @@
 """A thin wrapper so the agent doesn't care which model service it talks to.
 
-chat() returns a plain dict:
+chat(messages, tools, tool_choice) returns a plain dict:
     {"content": str | None,
      "tool_calls": [{"id", "name", "arguments"}],   # arguments is a JSON string
      "usage": {"prompt_tokens", "completion_tokens"}}
@@ -27,13 +27,16 @@ class OpenAIChatModel:
             self.client = OpenAI(max_retries=3)
             self.model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 
-    def chat(self, messages: list[dict], tools: list[dict]) -> dict:
+    def chat(self, messages: list[dict], tools: list[dict], tool_choice: str = "auto") -> dict:
         resp = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             tools=tools,
-            tool_choice="auto",
+            tool_choice=tool_choice,  # "required" forces a tool call
+            parallel_tool_calls=False,  # one tool call per step, so the model sees each result before acting
             temperature=0,
+            max_tokens=1024,  # stops a model that starts repeating itself
+            timeout=120,
         )
         msg = resp.choices[0].message
         return {
@@ -55,9 +58,11 @@ class ScriptedModel:
     def __init__(self, replies: list[dict]):
         self.replies = list(replies)
         self.calls: list[list[dict]] = []
+        self.choices: list[str] = []  # tool_choice on each call
 
-    def chat(self, messages, tools):
+    def chat(self, messages, tools, tool_choice="auto"):
         self.calls.append([dict(m) for m in messages])
+        self.choices.append(tool_choice)
         if not self.replies:
             raise RuntimeError("ScriptedModel ran out of replies")
         reply = self.replies.pop(0)
